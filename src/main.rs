@@ -1,5 +1,5 @@
 use headless_chrome::{protocol::cdp::Page::CaptureScreenshotFormatOption::Png, Browser};
-use reqwest::blocking::*;
+use reqwest::blocking::{multipart::Form, *};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
@@ -110,8 +110,18 @@ fn upload_image(image_path: &str) -> () {
         .file("file", image_path)
         .unwrap();
     let client = Client::new();
+    multipart_post(&client, form, "https://slack.com/api/files.upload");
+}
+
+fn slack_client() -> Client {
+    let client = Client::new();
+    client
+}
+
+fn multipart_post(client: &Client, form: Form, url: &str) -> () {
+    let conf = test_channel_conf();
     let res = client
-        .post("https://slack.com/api/files.upload")
+        .post(url)
         .bearer_auth(&conf.token)
         .multipart(form)
         .send()
