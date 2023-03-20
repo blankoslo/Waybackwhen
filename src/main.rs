@@ -1,13 +1,19 @@
 mod structs;
 use crate::structs::SlackRequest;
 use chrono::{DateTime, TimeZone, Utc};
+use headless_chrome::protocol::cdp::Target::CreateTarget;
 use headless_chrome::{protocol::cdp::Page::CaptureScreenshotFormatOption::Png, Browser};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use reqwest::blocking::{multipart::Form, *};
 use reqwest::header;
 use std::error::Error;
+use std::thread;
+use std::time::Duration;
 use structs::{Block, SlackConfig, Title};
+
+#[macro_use]
+extern crate log;
 
 fn test_channel_conf() -> SlackConfig {
     let token = std::env::var("SLACK_TOKEN").unwrap();
@@ -15,7 +21,7 @@ fn test_channel_conf() -> SlackConfig {
     return SlackConfig { token, channel_id };
 }
 fn random_date(rng: &mut ThreadRng) -> DateTime<Utc> {
-    //let start = 946684800; // 2000 
+    //let start = 946684800; // 2000
     let start = 1167631200; // 2007
     let end = 1420070400; // 2015
     let random_date = rng.gen_range(start..end);
@@ -30,6 +36,9 @@ fn date_to_wayback_url(date: DateTime<Utc>, url: &str) -> String {
 }
 
 fn main() {
+    env_logger::init();
+
+    info!("Starting up");
     let big_company_website_urls_that_existed_in_the00s = vec![
         "https://www.google.com",
         "https://www.facebook.com",
@@ -48,17 +57,24 @@ fn main() {
         "https://www.whatsapp.com",
     ];
     // get random date between 2000 and 2015
+    info!("Getting random date");
     let mut rng = rand::thread_rng();
     let random_date = random_date(&mut rng);
     let random_url = big_company_website_urls_that_existed_in_the00s
         [rng.gen_range(0..big_company_website_urls_that_existed_in_the00s.len())];
     println!("Random date: {}", random_date);
     println!("Random url: {}", random_url);
+    info!("Getting wayback url");
     let url = date_to_wayback_url(random_date, random_url);
 
     let client = slack_client();
+    info!("Screenshotting site, url: {} at {}", url, random_date);
     let x = screenshot_site(&url);
     if x.is_err() {
+        error!(
+            "Something went wrong when trying to screenshot site. Error: {:?}",
+            x
+        );
         panic!("Error: {:?}", x);
     }
     upload_image(&client, IMAGE_PATH);
@@ -67,16 +83,54 @@ fn main() {
 
 //const BASE_SLACK_URL: &str = "https://slack.com/api/";
 const IMAGE_PATH: &str = "/tmp/image.png";
+const TIMEOUT: Duration = Duration::from_secs(10);
 
-fn screenshot_site(url: &str) -> Result<(), Box<dyn Error>> {
-    let browser = Browser::default()?;
-    let tab = browser.new_tab()?;
-    tab.navigate_to(url)?;
+#[derive(Debug)]
+enum ScreenshotError {
+    CreateBrowser,
+    CreateTab,
+    CaptureScreenShot,
+    WriteImage,
+}
 
-    let png = tab.capture_screenshot(Png, Some(75), None, true)?;
-    // write  the image to a file
-    std::fs::write(IMAGE_PATH, png).unwrap();
-    Ok(())
+// Possibly the safest function in the whole world
+fn screenshot_site(url: &str) -> Result<(), ScreenshotError> {
+    //let url = "https://blank.no";
+    info!("Creating browser and tab");
+    let browser = Browser::default().map_err(|_| ScreenshotError::CreateBrowser)?;
+    info!("Navigating to url: {}", url);
+    let tab = browser
+        .new_tab_with_options(CreateTarget {
+            background: None,
+            new_window: None,
+            url: url.to_string(),
+            width: Some(1920),
+            height: Some(1080),
+            browser_context_id: None,
+            enable_begin_frame_control: None,
+        })
+        .map_err(|_| ScreenshotError::CreateTab)?;
+
+    // We abuse the wait_for_element_with_custom_timeout function as a timeout
+    // We don't know which elements will be on the page, so we just wait for a random element
+    // that we know will never be on the page
+    info!("Waiting for page to load");
+    //tab.wait_for_element_with_custom_timeout("#kjøregårDoesNotExistOnThePage", TIMEOUT);
+    // I think this works. I'm not good mutability and side effects
+    thread::sleep(TIMEOUT);
+
+    info!("Taking screenshot");
+    let png = tab
+        .capture_screenshot(
+            Png,
+            Some(75),
+            None,
+            true,
+        )
+        .map_err(|_| ScreenshotError::CaptureScreenShot)?;
+
+    info!("Writing image to disk. Path {}", IMAGE_PATH);
+    std::fs::write(IMAGE_PATH, png).map_err(|_| ScreenshotError::WriteImage)
 }
 
 fn upload_image(client: &Client, image_path: &str) -> () {
