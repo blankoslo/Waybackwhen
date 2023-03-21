@@ -7,7 +7,6 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use reqwest::blocking::{multipart::Form, *};
 use reqwest::header;
-use std::error::Error;
 use std::thread;
 use std::time::Duration;
 use structs::{Block, SlackConfig, Title};
@@ -31,8 +30,7 @@ fn random_date(rng: &mut ThreadRng) -> DateTime<Utc> {
 
 fn date_to_wayback_url(date: DateTime<Utc>, url: &str) -> String {
     let date_str = date.format("%Y%m%d%H%M%S").to_string();
-    let wayback_url = format!("https://web.archive.org/web/{}if_/{}", date_str, url);
-    return wayback_url;
+    return format!("https://web.archive.org/web/{}if_/{}", date_str, url);
 }
 
 fn main() {
@@ -62,8 +60,8 @@ fn main() {
     let random_date = random_date(&mut rng);
     let random_url = big_company_website_urls_that_existed_in_the00s
         [rng.gen_range(0..big_company_website_urls_that_existed_in_the00s.len())];
-    println!("Random date: {}", random_date);
-    println!("Random url: {}", random_url);
+    info!("Random date: {}", random_date);
+    info!("Random url: {}", random_url);
     info!("Getting wayback url");
     let url = date_to_wayback_url(random_date, random_url);
 
@@ -111,22 +109,12 @@ fn screenshot_site(url: &str) -> Result<(), ScreenshotError> {
         })
         .map_err(|_| ScreenshotError::CreateTab)?;
 
-    // We abuse the wait_for_element_with_custom_timeout function as a timeout
-    // We don't know which elements will be on the page, so we just wait for a random element
-    // that we know will never be on the page
     info!("Waiting for page to load");
-    //tab.wait_for_element_with_custom_timeout("#kjøregårDoesNotExistOnThePage", TIMEOUT);
-    // I think this works. I'm not good mutability and side effects
     thread::sleep(TIMEOUT);
 
     info!("Taking screenshot");
     let png = tab
-        .capture_screenshot(
-            Png,
-            Some(75),
-            None,
-            true,
-        )
+        .capture_screenshot(Png, Some(75), None, true)
         .map_err(|_| ScreenshotError::CaptureScreenShot)?;
 
     info!("Writing image to disk. Path {}", IMAGE_PATH);
