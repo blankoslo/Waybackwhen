@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub struct SlackConfig {
     pub token: String,
     pub channel_id: String,
+    pub dry_run: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

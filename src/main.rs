@@ -17,7 +17,14 @@ extern crate log;
 fn test_channel_conf() -> SlackConfig {
     let token = std::env::var("SLACK_TOKEN").unwrap();
     let channel_id = std::env::var("CHANNEL_ID").unwrap();
-    return SlackConfig { token, channel_id };
+    let dry_run = std::env::var("DRY_RUN")
+        .map(|e| e == "true".to_string())
+        .unwrap_or(false);
+    return SlackConfig {
+        token,
+        channel_id,
+        dry_run,
+    };
 }
 fn random_date(rng: &mut ThreadRng) -> DateTime<Utc> {
     //let start = 946684800; // 2000
@@ -35,6 +42,7 @@ fn date_to_wayback_url(date: DateTime<Utc>, url: &str) -> String {
 
 fn main() {
     env_logger::init();
+    let conf = test_channel_conf();
 
     info!("Starting up");
     let big_company_website_urls_that_existed_in_the00s = vec![
@@ -67,16 +75,24 @@ fn main() {
 
     let client = slack_client();
     info!("Screenshotting site, url: {} at {}", url, random_date);
-    let x = screenshot_site(&url);
-    if x.is_err() {
+    let screenshot_res = screenshot_site(&url);
+    if screenshot_res.is_err() {
         error!(
             "Something went wrong when trying to screenshot site. Error: {:?}",
-            x
+            screenshot_res
         );
-        panic!("Error: {:?}", x);
+        panic!("Error: {:?}", screenshot_res);
     }
-    upload_image(&client, IMAGE_PATH);
-    x.unwrap();
+    info!("Uploading image in channel with id {}", conf.channel_id);
+    let upload_image_res = upload_image(&client, IMAGE_PATH, &random_date.to_string(), random_url);
+    if upload_image_res.is_err() {
+        error!(
+            "Something went wrong when trying to upload image site. Error: {:?}",
+            upload_image_res
+        );
+        panic!("Error: {:?}", upload_image_res);
+    }
+    info!("Successfully uploaded image");
 }
 
 //const BASE_SLACK_URL: &str = "https://slack.com/api/";
@@ -89,6 +105,12 @@ enum ScreenshotError {
     CreateTab,
     CaptureScreenShot,
     WriteImage,
+}
+
+#[derive(Debug)]
+enum UploadError {
+    Upload,
+    FormCreation,
 }
 
 // Possibly the safest function in the whole world
@@ -121,14 +143,22 @@ fn screenshot_site(url: &str) -> Result<(), ScreenshotError> {
     std::fs::write(IMAGE_PATH, png).map_err(|_| ScreenshotError::WriteImage)
 }
 
-fn upload_image(client: &Client, image_path: &str) -> () {
+fn upload_image(
+    client: &Client,
+    image_path: &str,
+    date_str: &str,
+    company_url: &str,
+) -> Result<(), UploadError> {
     let conf = test_channel_conf();
+    info!("Creating payload");
     let form = reqwest::blocking::multipart::Form::new()
         .text("channels", conf.channel_id)
-        .text("title", "Wikipedia beibi")
+        .text("title", company_url.to_owned() + " " + &date_str + " ish")
         .file("file", image_path)
-        .unwrap();
-    multipart_post(&client, form, "https://slack.com/api/files.upload");
+        .map_err(|_| UploadError::FormCreation)?;
+
+    multipart_post(&client, form, "https://slack.com/api/files.upload")
+        .map_err(|_| UploadError::Upload)
 }
 
 fn slack_client() -> Client {
@@ -144,9 +174,9 @@ fn slack_client() -> Client {
     client
 }
 
-fn multipart_post(authed_client: &Client, form: Form, url: &str) -> () {
-    let res = authed_client.post(url).multipart(form).send().unwrap();
-    println!("{:?}", res.text());
+fn multipart_post(authed_client: &Client, form: Form, url: &str) -> Result<(), reqwest::Error> {
+    info!("Posting image with multipart payload");
+    authed_client.post(url).multipart(form).send().map(|_| ())
 }
 
 /// UNUSED CODE
