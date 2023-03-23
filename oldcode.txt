@@ -1,0 +1,67 @@
+/// UNUSED CODE
+const POST_MESSAGE: &str = "https://slack.com/api/chat.postMessage";
+
+/// Post a message to a slack channel
+/// Currently unused
+fn post_message(conf: &SlackConfig) -> () {
+    let payload = SlackRequest {
+        channel: conf.channel_id.to_string(),
+        text: "Hei fra Rust".to_string(),
+        blocks: block_payload("", ""),
+    };
+    let client = Client::new();
+    let res = client
+        .post(POST_MESSAGE)
+        .bearer_auth(&conf.token)
+        .json(&payload)
+        .send();
+    println!("{:?}", res);
+}
+
+/// Payload for posting a message to a slack channel
+/// Currently unused
+fn block_payload(title: &str, image_url: &str) -> Vec<Block> {
+    let block = Block {
+        r#type: "image".to_string(),
+        title: Title {
+            r#type: "plain_text".to_string(),
+            text: title.to_string(),
+            emoji: true,
+        },
+        image_url: image_url.to_string(),
+        alt_text: title.to_string(),
+    };
+    return vec![block];
+}
+
+use serde::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Block {
+    pub r#type: String,
+    pub title: Title,
+    pub image_url: String,
+    pub alt_text: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Title {
+    pub r#type: String,
+    pub text: String,
+    pub emoji: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SlackRequest {
+    pub channel: String,
+    pub text: String,
+    pub blocks: Vec<Block>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UploadImageReq {
+    pub channels: Vec<String>,
+    pub file: String,
+    pub filename: String,
+    pub title: String,
+    pub filetype: String,
+}

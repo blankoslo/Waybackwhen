@@ -1,5 +1,4 @@
 mod structs;
-use crate::structs::SlackRequest;
 use chrono::{DateTime, TimeZone, Utc};
 use headless_chrome::protocol::cdp::Target::CreateTarget;
 use headless_chrome::{protocol::cdp::Page::CaptureScreenshotFormatOption::Png, Browser};
@@ -9,7 +8,7 @@ use reqwest::blocking::{multipart::Form, *};
 use reqwest::header;
 use std::thread;
 use std::time::Duration;
-use structs::{Block, SlackConfig, Title};
+use structs::SlackConfig;
 
 #[macro_use]
 extern crate log;
@@ -177,40 +176,4 @@ fn slack_client() -> Client {
 fn multipart_post(authed_client: &Client, form: Form, url: &str) -> Result<(), reqwest::Error> {
     info!("Posting image with multipart payload");
     authed_client.post(url).multipart(form).send().map(|_| ())
-}
-
-/// UNUSED CODE
-const POST_MESSAGE: &str = "https://slack.com/api/chat.postMessage";
-
-/// Post a message to a slack channel
-/// Currently unused
-fn post_message(conf: &SlackConfig) -> () {
-    let payload = SlackRequest {
-        channel: conf.channel_id.to_string(),
-        text: "Hei fra Rust".to_string(),
-        blocks: block_payload("", ""),
-    };
-    let client = Client::new();
-    let res = client
-        .post(POST_MESSAGE)
-        .bearer_auth(&conf.token)
-        .json(&payload)
-        .send();
-    println!("{:?}", res);
-}
-
-/// Payload for posting a message to a slack channel
-/// Currently unused
-fn block_payload(title: &str, image_url: &str) -> Vec<Block> {
-    let block = Block {
-        r#type: "image".to_string(),
-        title: Title {
-            r#type: "plain_text".to_string(),
-            text: title.to_string(),
-            emoji: true,
-        },
-        image_url: image_url.to_string(),
-        alt_text: title.to_string(),
-    };
-    return vec![block];
 }
