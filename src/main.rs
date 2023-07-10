@@ -60,6 +60,10 @@ fn main() {
         "https://www.tumblr.com",
         "https://www.pinterest.com",
         "https://www.whatsapp.com",
+        "https://www.vg.no",
+        "https://www.nrk.no",
+        "https://www.aftenposten.no",
+        "https://www.dagbladet.no",
     ];
     // get random date between 2000 and 2015
     info!("Getting random date");
@@ -72,7 +76,6 @@ fn main() {
     info!("Getting wayback url");
     let url = date_to_wayback_url(random_date, random_url);
 
-    let client = slack_client();
     info!("Screenshotting site, url: {} at {}", url, random_date);
     let screenshot_res = screenshot_site(&url);
     if screenshot_res.is_err() {
@@ -82,6 +85,11 @@ fn main() {
         );
         panic!("Error: {:?}", screenshot_res);
     }
+    if conf.dry_run {
+        info!("Dry run, not uploading image. View image at {}", IMAGE_PATH);
+        return;
+    }
+    let client = slack_client();
     info!("Uploading image in channel with id {}", conf.channel_id);
     let upload_image_res = upload_image(&client, IMAGE_PATH, &random_date.to_string(), random_url);
     if upload_image_res.is_err() {
