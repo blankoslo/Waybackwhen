@@ -1,6 +1,7 @@
 mod structs;
 use chrono::{DateTime, TimeZone, Utc};
 use headless_chrome::protocol::cdp::Target::CreateTarget;
+use headless_chrome::LaunchOptions;
 use headless_chrome::{protocol::cdp::Page::CaptureScreenshotFormatOption::Png, Browser};
 use rand::rngs::ThreadRng;
 use rand::Rng;
@@ -124,7 +125,13 @@ enum UploadError {
 fn screenshot_site(url: &str) -> Result<(), ScreenshotError> {
     //let url = "https://blank.no";
     info!("Creating browser and tab");
-    let browser = Browser::default().map_err(|_| ScreenshotError::CreateBrowser)?;
+    let browser = Browser::new(
+        LaunchOptions::default_builder()
+            .sandbox(false) // turn off sandbox since we're running as root inside docker. TODO: fix this
+            .build()
+            .unwrap(),
+    )
+    .map_err(|_| ScreenshotError::CreateBrowser)?;
     info!("Navigating to url: {}", url);
     let tab = browser
         .new_tab_with_options(CreateTarget {
