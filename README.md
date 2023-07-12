@@ -52,3 +52,18 @@ and if you want to peek inside the container instead of running the built binary
 ```bash
 > docker run --name wayback --rm --env-file .env  -it waybackwhen:YOUR_TAG /bin/sh
 ```
+
+# Possible features
+
+* Custom timelines for different sites
+* Dashboard for configuring websites and timelines
+
+# TODO
+
+* Add ci/cd for deploying new versions. Good luck!
+* Add monitoring so that error are reported
+
+# Bugs
+
+* When an image upload fails the script doesnt report an error. This often
+  happens if the bot is not in the channel.
