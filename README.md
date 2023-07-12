@@ -11,7 +11,16 @@ specific image, so to deploy a new version you have to change this url. You can
 most likely do this with the CLI but I've not tried yet.
 
 The docker images are hosted on Google Artifact Registry. You have to be
-particaly about how you tag it.
+particular about how you tag it.
+
+First build it
+
+```bash
+> docker build . -t waybackwhen:latest
+```
+
+then tag it. Of course you can do this in one step if you want to tweak the
+script.
 
 ```bash
 > ./tag-for-deployment.sh
