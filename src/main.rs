@@ -27,7 +27,7 @@ fn test_channel_conf() -> SlackConfig {
     };
 }
 fn random_date(rng: &mut ThreadRng) -> DateTime<Utc> {
-    let start = 1167631200; // 2007
+    let start = 1041379200; // 2003
     let end = 1577836800; // 2020
     let random_date = rng.gen_range(start..end);
     let date = Utc.timestamp_opt(random_date, 0).unwrap();
@@ -65,7 +65,7 @@ fn main() {
         "https://www.aftenposten.no",
         "https://www.dagbladet.no",
     ];
-    // get random date between 2007 and 2020
+    // get random date between 2003 and 2020
     info!("Getting random date");
     let mut rng = rand::thread_rng();
     let random_date = random_date(&mut rng);
