@@ -1787,7 +1787,6 @@ dependencies = [
  "log",
  "rand",
  "reqwest",
- "serde",
 ]
 
 [[package]]
